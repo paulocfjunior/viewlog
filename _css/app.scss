@@ -1,0 +1,48 @@
+body {
+    background: #efefef;
+    font-family: "Open Sans", sans-serif;
+}
+
+.row {
+    margin: 0;
+}
+
+.tab-pane h1 {
+    font-size: 24pt;
+    margin-top: 20px;
+}
+
+.tab-pane h2 {
+    font-size: 18pt;
+}
+
+.nav {
+    background: #222;
+    height: 100vh;
+}
+
+.nav-link {
+    color: #fff;
+}
+
+#owner {
+    color: #fff;
+    font-size: 18pt;
+    font-weight: bold;
+    padding: 15px 10px 3px;
+    border-bottom: 1px solid #444;
+    margin: 5px 10px 5px;
+}
+
+.tab-content {
+    height: 100vh;
+    overflow-y: scroll;
+}
+
+.tab-pane .card {
+    margin-bottom: 10px;
+}
+
+.users {
+    margin: 5px 7px;
+}

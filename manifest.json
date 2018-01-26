@@ -1,0 +1,44 @@
+{
+  "name": "ViewLog",
+  "icons": [
+    {
+        "src": "_img/spy.ico",
+        "sizes": "36x36",
+        "type": "image/x-icon",
+        "density": 0.75
+    },
+    {
+      "src": "_img/spy.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "density": 1.0
+  },
+  {
+      "src": "_img/spy.ico",
+      "sizes": "72x72",
+      "type": "image/x-icon",
+      "density": 1.5
+  },
+  {
+      "src": "_img/spy.ico",
+      "sizes": "96x96",
+      "type": "image/x-icon",
+      "density": 2.0
+  },
+  {
+      "src": "_img/spy.ico",
+      "sizes": "144x144",
+      "type": "image/x-icon",
+      "density": 3.0
+  },
+  {
+      "src": "_img/spy.ico",
+      "sizes": "192x192",
+      "type": "image/x-icon",
+      "density": 4.0
+  }
+],
+  "start_url": "/viewlog/",
+  "display": "standalone",
+  "orientation": "portrait"
+}

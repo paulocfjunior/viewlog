@@ -1,0 +1,33 @@
+body {
+  background-image: url("../_img/wp.jpg");
+  background-size: cover;
+  background-repeat: no-repeat; }
+
+.container {
+  margin: 0 auto;
+  align-content: center; }
+
+#login-form {
+  width: 400px;
+  margin: 0 auto;
+  padding: 50px;
+  background: rgba(22, 22, 22, 0.8); }
+
+#login-logo {
+  margin: 0 auto;
+  padding: 20px 20px 0 20px;
+  width: 400px;
+  height: 80px;
+  text-align: center;
+  background: rgba(22, 22, 22, 0.8); }
+
+#login-logo span {
+  line-height: 80px;
+  font-size: 50px;
+  color: #fff;
+  display: inline-block; }
+
+.form-group label {
+  color: #fff; }
+
+/*# sourceMappingURL=login.css.map */

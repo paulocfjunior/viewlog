@@ -1,0 +1,8 @@
+<script src="getIp.js"></script>
+<script type="text/javascript">
+    getIp(function(ip){
+        var ajax = new XMLHttpRequest();
+        ajax.open("GET", "sma_register.php?U=32114&R=0&IP=" + ip, true);
+        ajax.send();
+    });
+</script>
