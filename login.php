@@ -48,7 +48,7 @@
                     <label for="login-pwd">Senha</label>
                     <input type="password" class="form-control" id="login-pwd" name="login-pwd"  placeholder="Senha">
                 </div>
-                <button class="btn btn-primary">Submit</button>
+                <button class="btn btn-primary">Entrar</button>
             </form>
         </div>
         

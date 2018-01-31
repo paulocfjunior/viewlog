@@ -1,6 +1,7 @@
+@import url("https://fonts.googleapis.com/css?family=Open+Sans:400,700");
 body {
   background: #efefef;
-  font-family: "Open Sans", sans-serif; }
+  font-family: 'Open Sans', sans-serif; }
 
 .row {
   margin: 0; }

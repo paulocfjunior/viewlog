@@ -12,6 +12,7 @@
             setcookie("VIEWLOG_UPDATE_PROFILE_ERROR", "Faltaram parâmetros", time() + 60, "/");
             header("location: ../");
         } else {
+            
             $new_name = $_POST["new_name"];
             $new_pwd = $_POST["new_pwd"];
             $new_pwd_confirm = $_POST["new_pwd_confirm"];

@@ -71,20 +71,22 @@ function sql_transaction($query_list, $debug = false, $mysqli = "") {
     $mysqli->autocommit(FALSE);
 
     if ($debug)
-        echo_flush("Iniciando MySQLi Transaction \n\n", true);
+        print_r("Iniciando MySQLi Transaction \n\n");
     foreach ($query_list as $ssql) {
         if (($ssql !== "") && ($ssql !== null)) {
             $count++;
             $count_str = str_pad($count, 5, "0", STR_PAD_LEFT);
             if (!$mysqli->query($ssql)) {
-                if ($debug)
-                    echo_flush("\n\nErro no SQL $count_str: $ssql \n Nenhuma tabela foi afetada. \n", true);
+                if ($debug) {
+                    print_r("\n\nErro no SQL $count_str: $ssql \n Nenhuma tabela foi afetada. \n");
+                    print_r($mysqli->errno . ": " . $mysqli->error);
+                }
                 $mysqli->rollback();
                 $mysqli->autocommit(TRUE);
                 return false;
             } else {
                 if ($debug)
-                    echo_flush("[OK] $count_str: $ssql", true);
+                    print_r("[OK] $count_str: $ssql");
             }
         }
     }
@@ -93,7 +95,7 @@ function sql_transaction($query_list, $debug = false, $mysqli = "") {
     $mysqli->close();
 
     if ($debug)
-        echo_flush("Concluído com sucesso. Todas as queries foram Executadas.\n\n", true);
+        print_r("Concluído com sucesso. Todas as queries foram Executadas.\n\n");
     return true;
 }
 
