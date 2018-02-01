@@ -11,7 +11,10 @@
     $inc_o = ["default"];
     require "_php/include.php";
 
-    $NEXT_REPORT_ID = sql_execute_scalar("SELECT IF(MAX(`id`) IS NULL, 0, MAX(`id`)+1) AS NEXT_ID FROM `report` WHERE `owner` = '$UID'");
+    $SQL            = <<<SQL
+        SELECT IF(MAX(`id`) IS NULL, 0, MAX(`id`)+1) AS NEXT_ID FROM `report` WHERE `owner` = '$UID'
+SQL;
+    $NEXT_REPORT_ID = sql_execute_scalar($SQL);
 
     $PAGE_TITLES = [
         "v-pills-dashboard" => "Dashboard",
@@ -37,7 +40,6 @@
         <meta name="author" content="Paulo Cézar">
         <link rel="shortcut icon" href="_img/spy.ico">
         <link rel="manifest" href="manifest.json">
-        <script type="text/javascript" src="_js/Chart.bundle.min.js"></script>
         <!-- Add to homescreen for Chrome on Android -->
         <meta name="mobile-web-app-capable" content="yes">
         <link rel="icon" sizes="512x512" href="_img/spy-256.png">
@@ -65,6 +67,15 @@
         <script src="_js/jquery.toast.min.js"></script>
         <script src="_js/bootstrap.min.js"></script>
         <script src="_js/bootstrap-select.min.js"></script>
+
+        <!-- Resources -->
+        <script src="https://www.amcharts.com/lib/3/amcharts.js"></script>
+        <script src="https://www.amcharts.com/lib/3/serial.js"></script>
+        <script src="https://www.amcharts.com/lib/3/plugins/export/export.min.js"></script>
+        <link rel="stylesheet" href="https://www.amcharts.com/lib/3/plugins/export/export.css" type="text/css" media="all" />
+        <script src="https://www.amcharts.com/lib/3/themes/light.js"></script>
+
+        <script src="_js/amchart.js"></script>
     </head>
 
     <body>
@@ -114,47 +125,77 @@
                     <hr/>
 
                     <div class="card">
-                        <div class="card-header">
-
-                        </div>
+                        <div id="featured" class="card-header"></div>
                         <div class="card-body">
                             <h5 class="card-title">Recentemente Visualizados</h5>
-                            <a href="#" class="btn btn-primary">Detalhes</a>
+                            <a class="btn btn-primary detail"
+                               id="v-pills-detail-tab"
+                               data-toggle="pill"
+                               href="#v-pills-detail"
+                               role="tab"
+                               aria-controls="v-pills-detail"
+                               aria-selected="false">
+                                Detalhes
+                            </a>
                         </div>
                     </div>
 
-                    <div class="card">
-                        <div class="card-header">
-                            Featured
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title">Relatório de Volumetria</h5>
-                            <p class="card-text">Descrição do Relatório</p>
-                            <a href="#" class="btn btn-primary">Detalhes</a>
-                        </div>
-                    </div>
+                    <?php
+                        $REPORTS["SQL"]   = "SELECT * FROM `report` WHERE `owner` = '$UID'";
+                        $REPORTS["QUERY"] = sql_execute($REPORTS["SQL"]);
+                        while ($REPORTS["ROW"]   = $REPORTS["QUERY"]->fetch_assoc()) {
+                            $REPORT_DATA["SQL"]   = "SELECT * FROM `viewlog` WHERE `owner_id` = '$UID' AND `rep_id` = '{$REPORTS["ROW"]["id"]}';";
+                            $REPORT_DATA["SQL"]   = "SELECT DATE_FORMAT(`dt`, '%Y-%m-%d') AS 'date', COUNT(id) AS 'value' FROM `viewlog` WHERE `owner_id` = '$UID' AND `rep_id` = '{$REPORTS["ROW"]["id"]}' GROUP BY DATE_FORMAT(`dt`, '%Y-%m-%d')";
+                            $REPORT_DATA["QUERY"] = sql_execute($REPORT_DATA["SQL"]);
 
-                    <div class="card">
-                        <div class="card-header">
-                            Featured
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title">Relatório de Volumetria</h5>
-                            <p class="card-text">Descrição do Relatório</p>
-                            <a href="#" class="btn btn-primary">Detalhes</a>
-                        </div>
-                    </div>
+                            $GRAPH_CONFIGURATION = "";
+                            $GRAPH_FAILMESSAGE   = "";
+                            if ($REPORT_DATA["QUERY"]->num_rows === 0) {
+                                $GRAPH_FAILMESSAGE = "<span class='empty_graph'>Este relatório ainda não possui visualizações.</span>";
+                                $GRAPH_CLASS       = "fail-message";
+                            } else {
+                                $REPORT_DATA["ARRAY"] = [];
+                                $REPORT_DATA["JS"]    = [];
 
-                    <div class="card">
-                        <div class="card-header">
-                            Featured
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title">Relatório de Volumetria</h5>
-                            <p class="card-text">Descrição do Relatório</p>
-                            <a href="#" class="btn btn-primary">Detalhes</a>
-                        </div>
-                    </div>
+                                while ($REPORT_DATA["ROW"] = $REPORT_DATA["QUERY"]->fetch_object()) {
+                                    array_push($REPORT_DATA["JS"], "{date: '{$REPORT_DATA["ROW"]->date}', value: {$REPORT_DATA["ROW"]->value}}");
+                                    array_push($REPORT_DATA["ARRAY"], [$REPORT_DATA["ROW"]->date => $REPORT_DATA["ROW"]->value]);
+                                }
+                                $REPORT_DATA["JS"]   = implode(",", $REPORT_DATA["JS"]);
+                                $GRAPH_CONFIGURATION = "<script>draw('report-{$REPORTS["ROW"]["id"]}', [{$REPORT_DATA["JS"]}]);</script>";
+                                $GRAPH_CLASS         = "graph";
+                            }
+
+                            echo "
+                                <div class=\"card\">
+                                    $GRAPH_CONFIGURATION
+                                    <div id=\"report-{$REPORTS["ROW"]["id"]}\" class=\"card-header $GRAPH_CLASS\">$GRAPH_FAILMESSAGE</div>
+                                    <div class=\"card-body\">
+                                        <h5 class=\"card-title\">{$REPORTS["ROW"]["name"]}</h5>
+                                        <p class=\"card-text\">{$REPORTS["ROW"]["description"]}</p>
+                                        <a class=\"btn btn-primary detail\"
+                                           id=\"v-pills-detail-tab-0\"
+                                           data-toggle=\"pill\"
+                                           href=\"#v-pills-detail\"
+                                           role=\"tab\"
+                                           aria-controls=\"v-pills-detail\"
+                                           aria-selected=\"false\">
+                                            Detalhes
+                                        </a>
+                                    </div>
+                                </div>";
+                        }
+                    ?>
+
+                </div>
+                <div class="tab-pane fade <?= ($CURRENT_PAGE == "v-pills-detail" ? "active show" : "") ?>"
+                     id="v-pills-detail"
+                     role="tabpanel"
+                     aria-labelledby="v-pills-detail-tab">
+
+                    <h1>Detalhes</h1>
+                    <h2>Detalhes de acesso ao relatório <span id="detail-report-name"></span></h2>
+                    <hr/>
 
                 </div>
                 <div class="tab-pane fade <?= ($CURRENT_PAGE == "v-pills-profile" ? "active show" : "") ?>"
@@ -319,15 +360,15 @@
                                     db-id='{$my_reports["ROW"]["id"]}'
                                     db-name='{$my_reports["ROW"]["name"]}'
                                     db-description='{$my_reports["ROW"]["description"]}'
-                                    db-shares='{$sharing_ids}'
-                                    >
-                                    <div class=\"d-flex w-100 justify-content-between\">
-                                        <h5 class=\"mb-1\">#{$my_reports["ROW"]["id"]}: {$my_reports["ROW"]["name"]}</h5>
-                                        <small>Visto por último: $last_seen_str</small>
-                                    </div>
-                                    <p class=\"mb-1\">{$my_reports["ROW"]["description"]}</p>
-                                    <small>$sharing_pills</small>
-                                </a>
+            db-shares='{$sharing_ids}'
+            >
+            <div class=\"d-flex w-100 justify-content-between\">
+            <h5 class=\"mb-1\">#{$my_reports["ROW"]["id"]}: {$my_reports["ROW"]["name"]}</h5>
+            <small>Visto por último: $last_seen_str</small>
+            </div>
+                    <p class=\"mb-1\">{$my_reports["ROW"]["description"]}</p>
+                    <small>$sharing_pills</small>
+                    </a>
                             ";
                             }
                         ?>
@@ -342,17 +383,14 @@
             var intervalFx = null;
             var updateTimeMillis = 1000;
             var uid = $("#owner").attr("db-id");
-
             $(".nav-link").click(function () {
                 document.cookie = "CURRENT_PAGE=" + $(this).attr("aria-controls");
                 document.title = "ViewLog - " + $(this).html();
-
                 clearInterval(intervalFx);
                 switch ($(this).attr("aria-controls")) {
                     case 'v-pills-dashboard':
                         intervalFx = setInterval(function () {
                             rep_id = 0;
-
                             $.get("_php/api.charts.php?rep_id=" + rep_id + "&uid=" + uid, function (response) {
                                 try {
                                     var r = JSON.parse(response);
@@ -372,31 +410,24 @@
                                     })
                                 }
                             });
-
                         }, updateTimeMillis);
                         break;
-
                     default:
 
                         break;
                 }
             });
-
             $(".list-group-item-action").click(function () {
                 $(window).animate({
                     scrollTop: 0
                 }, 2000);
-
                 $(".list-group-item-action").removeClass("active");
                 $(this).addClass("active");
-
                 $("#my-report-edit-id").val($(this).attr("db-id"));
                 $("#my-report-edit-name").val($(this).attr("db-name"));
                 $("#my-report-edit-description").val($(this).attr("db-description"));
-
                 $(".form-check-input").removeAttr("checked");
                 $("#my-report-edit-show-modal").removeAttr("disabled");
-
                 var shares = $(this).attr("db-shares").split(",");
                 if (shares.length > 0) {
                     for (var i = 0; i < shares.length; i++) {
@@ -405,60 +436,69 @@
                 }
             });
 
+            $(".detail").click(function () {
+
+            });
+
+            var toastSave = false;
             $("#my-report-edit-save").click(function () {
-                var toastSave = $.toast({
+                toastSave = $.toast({
                     heading: 'Salvar relatório',
                     text: "Processando requisição...",
-                    hideAfter: 3000,
+                    hideAfter: 2000,
                     icon: 'info',
                     loader: true
                 });
-
-                var request, rep_id, uid, rep_name, rep_description, shares = [];
+                var request, rep_id, rep_name, rep_description, shares = [];
                 rep_id = $("#my-report-edit-id").val();
                 rep_name = $("#my-report-edit-name").val();
                 rep_description = $("#my-report-edit-description").val() || "";
-
                 $(".form-check-input:checked").each(function () {
                     shares.push($(this).attr("id").split("-")[1]);
                 });
-
                 $.post("_php/update_report.php", {
                     'uid': uid,
                     'rep_id': rep_id,
                     "rep_name": rep_name,
                     "rep_description": rep_description,
                     "shares": shares
-                }, function (response) {
-                    console.log(response);
-                    toastSave.update({
-                        heading: 'Salvar relatório',
-                        text: response.message,
-                        hideAfter: 2000,
-                        icon: (response.status === 0) ? 'error' : 'success',
-                        loader: true,
-                        afterHidden: function () {
-                            location.reload();
-                        }
-                    })
+                }, function (r) {
+                    try {
+                        var response = JSON.parse(r);
+                        console.log(response);
+                        toastSave.update({
+                            heading: 'Salvar relatório',
+                            text: response.message,
+                            hideAfter: 1000,
+                            icon: (parseInt(response.status) === 0) ? 'error' : 'success',
+                            loader: true,
+                            afterHidden: function () {
+                                if (parseInt(response.status) === 1)
+                                    location.reload();
+                            }
+                        });
+                    } catch (e) {
+                        toastSave.update({
+                            heading: 'Erro inesperado',
+                            text: r,
+                            hideAfter: 10000,
+                            icon: 'error',
+                            loader: true
+                        });
+                    }
                 });
             });
-
             $("#my-report-edit-del").click(function () {
-                var toastDelete = $.toast({
-                    heading: 'Excluir relatório',
+                var toastDelete = $.toast({heading: 'Excluir relatório',
                     text: "Processando requisição...",
                     hideAfter: 3000,
                     icon: 'info',
                     loader: true
                 });
-
                 var request, rep_id;
                 rep_id = $("#my-report-edit-id").val();
-
                 $.post("_php/delete_report.php", {
-                    'uid': uid,
-                    'rep_id': rep_id
+                    'uid': uid, 'rep_id': rep_id
                 }, function (response) {
                     try {
                         var r = JSON.parse(response);
