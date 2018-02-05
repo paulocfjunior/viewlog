@@ -9,6 +9,11 @@ body {
     margin: 0;
 }
 
+.card > hr {
+    background-color: transparent;
+    margin-bottom: 0;
+}
+
 .tab-pane h1 {
     font-size: 24pt;
     margin-top: 20px;
@@ -49,9 +54,9 @@ body {
     margin: 5px 7px;
 }
 
-.card-header {
+.graph {
     height: 400px;
-    padding: 10px 20px 30px 0px;
+    padding: 0 20px 30px 0px;
 }
 
 .empty_graph {

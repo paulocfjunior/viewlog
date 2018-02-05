@@ -16,14 +16,24 @@
 SQL;
     $NEXT_REPORT_ID = sql_execute_scalar($SQL);
 
+    $REDIRECT_PAGE = [
+        "v-pills-detail" => "v-pills-dashboard"
+    ];
+
     $PAGE_TITLES = [
-        "v-pills-dashboard" => "Dashboard",
-        "v-pills-profile"   => "Perfil",
-        "v-pills-reports"   => "Meus relatórios"
+        "v-pills-dashboard"         => "Dashboard",
+        "v-pills-dashboard-sharing" => "Compartilhados",
+        "v-pills-detail"            => "Detalhes",
+        "v-pills-profile"           => "Perfil",
+        "v-pills-reports"           => "Meus relatórios"
     ];
 
     if (isset($_COOKIE["CURRENT_PAGE"]) && $_COOKIE["CURRENT_PAGE"] !== "undefined") {
-        $CURRENT_PAGE = $_COOKIE["CURRENT_PAGE"];
+        if (array_key_exists($_COOKIE["CURRENT_PAGE"], $REDIRECT_PAGE)) {
+            $CURRENT_PAGE = $REDIRECT_PAGE[$_COOKIE["CURRENT_PAGE"]];
+        } else {
+            $CURRENT_PAGE = $_COOKIE["CURRENT_PAGE"];
+        }
     } else {
         $CURRENT_PAGE = "v-pills-dashboard";
     }
@@ -79,6 +89,7 @@ SQL;
     </head>
 
     <body>
+
         <div class="row">
             <div class="nav flex-column nav-pills col-2" id="v-pills-tab" role="tablist" aria-orientation="vertical">
                 <div id="owner" db-id="<?= $UID ?>">
@@ -92,6 +103,15 @@ SQL;
                    aria-controls="v-pills-dashboard"
                    aria-selected="true">
                     Dashboard
+                </a>
+                <a class="nav-link <?= ($CURRENT_PAGE == "v-pills-dashboard-sharing" ? "active" : "") ?>"
+                   id="v-pills-dashboard-sharing-tab"
+                   data-toggle="pill"
+                   href="#v-pills-dashboard-sharing"
+                   role="tab"
+                   aria-controls="v-pills-dashboard-sharing"
+                   aria-selected="true">
+                    Dashboard Sharing
                 </a>
                 <a class="nav-link <?= ($CURRENT_PAGE == "v-pills-profile" ? "active" : "") ?>"
                    id="v-pills-profile-tab"
@@ -121,9 +141,12 @@ SQL;
                      id="v-pills-dashboard" role="tabpanel" aria-labelledby="v-pills-dashboard-tab">
 
                     <h1>Dashboard</h1>
-                    <h2>Painel de acompanhamento de visualizações <i>realtime</i></h2>
+                    <h2>Painel de acompanhamento de visualizações</h2>
+                    <input class="form-control" id="search" type="text" placeholder="Filtrar relatórios">
+                    <small id="search-count"></small>
                     <hr/>
 
+                    <!--
                     <div class="card">
                         <div id="featured" class="card-header"></div>
                         <div class="card-body">
@@ -139,6 +162,7 @@ SQL;
                             </a>
                         </div>
                     </div>
+                    -->
 
                     <?php
                         $REPORTS["SQL"]   = "SELECT * FROM `report` WHERE `owner` = '$UID'";
@@ -161,23 +185,101 @@ SQL;
                                     array_push($REPORT_DATA["JS"], "{date: '{$REPORT_DATA["ROW"]->date}', value: {$REPORT_DATA["ROW"]->value}}");
                                     array_push($REPORT_DATA["ARRAY"], [$REPORT_DATA["ROW"]->date => $REPORT_DATA["ROW"]->value]);
                                 }
+
                                 $REPORT_DATA["JS"]   = implode(",", $REPORT_DATA["JS"]);
-                                $GRAPH_CONFIGURATION = "<script>draw('report-{$REPORTS["ROW"]["id"]}', [{$REPORT_DATA["JS"]}]);</script>";
+                                $GRAPH_CONFIGURATION = "<script>"
+                                    . "var chart_{$REPORTS["ROW"]["owner"]}_{$REPORTS["ROW"]["id"]} = draw('report-{$REPORTS["ROW"]["owner"]}-{$REPORTS["ROW"]["id"]}', "
+                                    . "[{$REPORT_DATA["JS"]}]);"
+                                    . "</script>";
                                 $GRAPH_CLASS         = "graph";
                             }
 
                             echo "
-                                <div class=\"card\">
+                                <div class=\"card\" search='{$REPORTS["ROW"]["id"]}|{$REPORTS["ROW"]["name"]}|{$REPORTS["ROW"]["description"]}'>
                                     $GRAPH_CONFIGURATION
-                                    <div id=\"report-{$REPORTS["ROW"]["id"]}\" class=\"card-header $GRAPH_CLASS\">$GRAPH_FAILMESSAGE</div>
+                                    <div id=\"report-{$REPORTS["ROW"]["owner"]}-{$REPORTS["ROW"]["id"]}\" class=\"card-header $GRAPH_CLASS\">$GRAPH_FAILMESSAGE</div>
                                     <div class=\"card-body\">
                                         <h5 class=\"card-title\">{$REPORTS["ROW"]["name"]}</h5>
                                         <p class=\"card-text\">{$REPORTS["ROW"]["description"]}</p>
                                         <a class=\"btn btn-primary detail\"
-                                           id=\"v-pills-detail-tab-0\"
+                                           id=\"v-pills-detail-tab\"
                                            data-toggle=\"pill\"
                                            href=\"#v-pills-detail\"
                                            role=\"tab\"
+                                           owner=\"{$REPORTS["ROW"]["owner"]}\"
+                                           report=\"{$REPORTS["ROW"]["id"]}\"
+                                           reportName=\"{$REPORTS["ROW"]["name"]}\"
+                                           aria-controls=\"v-pills-detail\"
+                                           aria-selected=\"false\">
+                                            Detalhes
+                                        </a>
+                                    </div>
+                                </div>";
+                        }
+                    ?>
+
+                </div>
+
+                <div class="tab-pane fade <?= ($CURRENT_PAGE == "v-pills-dashboard-sharing" ? "active show" : "") ?>"
+                     id="v-pills-dashboard-sharing" role="tabpanel" aria-labelledby="v-pills-dashboard-sharing-tab">
+
+                    <h1>Dashboard Relatórios Compartilhados</h1>
+                    <h2>Painel de acompanhamento de visualizações dos relatórios compartilhados</h2>
+                    <input class="form-control" id="shared-search" type="text" placeholder="Filtrar relatórios">
+                    <small id="shared-search-count"></small>
+                    <hr/>
+
+                    <?php
+                        $SHARED_REPORTS["SQL"]   = "
+                            SELECT s.owner_id AS owner_id, u.name AS owner_name, s.report_id AS report_id, r.name AS report_name, r.description AS report_description
+                            FROM `report` r
+                                INNER JOIN `share` s ON r.`id` = s.`report_id` AND r.`owner` = s.`owner_id`
+                                INNER JOIN `usr` u ON s.`owner_id` = u.`uid`
+                            WHERE s.`usr_id` = '$UID' ORDER BY s.`owner_id`, r.`name`";
+                        $SHARED_REPORTS["QUERY"] = sql_execute($SHARED_REPORTS["SQL"]);
+
+                        while ($SHARED_REPORTS["ROW"] = $SHARED_REPORTS["QUERY"]->fetch_assoc()) {
+                            $REPORT_DATA["SQL"]          = "SELECT * FROM `viewlog` WHERE `owner_id` = '{$SHARED_REPORTS["ROW"]["owner_id"]}' AND `rep_id` = '{$SHARED_REPORTS["ROW"]["report_id"]}';";
+                            $SHARED_REPORT_DATA["SQL"]   = "SELECT DATE_FORMAT(`dt`, '%Y-%m-%d') AS 'date', COUNT(id) AS 'value' FROM `viewlog` WHERE `owner_id` = '{$SHARED_REPORTS["ROW"]["owner_id"]}' AND `rep_id` = '{$SHARED_REPORTS["ROW"]["report_id"]}' GROUP BY DATE_FORMAT(`dt`, '%Y-%m-%d')";
+                            $SHARED_REPORT_DATA["QUERY"] = sql_execute($SHARED_REPORT_DATA["SQL"]);
+
+                            $GRAPH_CONFIGURATION = "";
+                            $GRAPH_FAILMESSAGE   = "";
+                            if ($SHARED_REPORT_DATA["QUERY"]->num_rows === 0) {
+                                $GRAPH_FAILMESSAGE = "<span class='empty_graph'>Este relatório ainda não possui visualizações.</span>";
+                                $GRAPH_CLASS       = "fail-message";
+                            } else {
+                                $SHARED_REPORT_DATA["ARRAY"] = [];
+                                $SHARED_REPORT_DATA["JS"]    = [];
+
+                                while ($SHARED_REPORT_DATA["ROW"] = $SHARED_REPORT_DATA["QUERY"]->fetch_object()) {
+                                    array_push($SHARED_REPORT_DATA["JS"], "{date: '{$SHARED_REPORT_DATA["ROW"]->date}', value: {$SHARED_REPORT_DATA["ROW"]->value}}");
+                                    array_push($SHARED_REPORT_DATA["ARRAY"], [$SHARED_REPORT_DATA["ROW"]->date => $SHARED_REPORT_DATA["ROW"]->value]);
+                                }
+
+                                $SHARED_REPORT_DATA["JS"] = implode(",", $SHARED_REPORT_DATA["JS"]);
+                                $GRAPH_CONFIGURATION      = "<script>"
+                                    . "var shared_chart_{$SHARED_REPORTS["ROW"]["owner_id"]}_{$SHARED_REPORTS["ROW"]["report_id"]} = draw('shared-report-{$SHARED_REPORTS["ROW"]["owner_id"]}-{$SHARED_REPORTS["ROW"]["report_id"]}', "
+                                    . "[{$SHARED_REPORT_DATA["JS"]}]);"
+                                    . "</script>";
+                                $GRAPH_CLASS              = "graph";
+                            }
+
+                            echo "
+                                <div class=\"card shared-card\" shared-search='{$SHARED_REPORTS["ROW"]["report_id"]}|{$SHARED_REPORTS["ROW"]["report_name"]}|{$SHARED_REPORTS["ROW"]["report_description"]}|{$SHARED_REPORTS["ROW"]["owner_name"]}'>
+                                    $GRAPH_CONFIGURATION
+                                    <div id=\"shared-report-{$SHARED_REPORTS["ROW"]["owner_id"]}-{$SHARED_REPORTS["ROW"]["report_id"]}\" class=\"card-header $GRAPH_CLASS\">$GRAPH_FAILMESSAGE</div>
+                                    <div class=\"card-body\">
+                                        <h5 class=\"card-title\"><span class=\"badge badge-secondary\">{$SHARED_REPORTS["ROW"]["owner_name"]}</span> {$SHARED_REPORTS["ROW"]["report_name"]}</h5>
+                                        <p class=\"card-text\">{$SHARED_REPORTS["ROW"]["report_description"]}</p>
+                                        <a class=\"btn btn-primary detail shared\"
+                                           id=\"v-pills-detail-tab\"
+                                           data-toggle=\"pill\"
+                                           href=\"#v-pills-detail\"
+                                           role=\"tab\"
+                                           owner=\"{$SHARED_REPORTS["ROW"]["owner_id"]}\"
+                                           report=\"{$SHARED_REPORTS["ROW"]["report_id"]}\"
+                                           reportName=\"{$SHARED_REPORTS["ROW"]["report_name"]}\"
                                            aria-controls=\"v-pills-detail\"
                                            aria-selected=\"false\">
                                             Detalhes
@@ -193,10 +295,31 @@ SQL;
                      role="tabpanel"
                      aria-labelledby="v-pills-detail-tab">
 
-                    <h1>Detalhes</h1>
-                    <h2>Detalhes de acesso ao relatório <span id="detail-report-name"></span></h2>
+                    <h1 id='title-detail'>Detalhes</h1>
+                    <h2>Detalhes de acesso ao relatório <span id='detail-report-name'></span></h2>
+                    <div id="detail-loading" class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%">
+                        </div>
+                    </div>
                     <hr/>
-
+                    <div id="detail-content">
+                        <div class='card'>
+                            <div class='card-body'>
+                                <h5 class='card-title'>Volume de acesso</h5>
+                                <p class='card-text'>Acessos mais recentes por dia</p>
+                            </div>
+                            <hr/>
+                            <div id='report-detail' class='card-header graph'></div>
+                        </div>
+                        <hr/>
+                        <div class='card'>
+                            <div class='card-body'>
+                                <h5 class='card-title'>Relação dos ultimos acessos</h5>
+                                <p class='card-text'>Agrupados por IP e Usuário (quando disponível)</p>
+                            </div>
+                            <div class='card-header'><div id='detail-table'></div></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="tab-pane fade <?= ($CURRENT_PAGE == "v-pills-profile" ? "active show" : "") ?>"
                      id="v-pills-profile"
@@ -325,7 +448,8 @@ SQL;
                                 if (($sharing["QUERY"] === false) || ($sharing["QUERY"]->num_rows === 0)) {
                                     $sharing_pills = "<span class=\"badge badge-secondary\">Sem compatilhamentos</span>";
                                 } else {
-                                    $sharing_pills  = $sharing_ids    = [];
+                                    $sharing_ids    = [];
+                                    $sharing_pills  = [];
                                     while ($sharing["ROW"] = $sharing["QUERY"]->fetch_assoc()) {
                                         $sharing_pills[] = "<span class=\"badge badge-primary\">{$sharing["ROW"]["name"]}</span>";
                                         $sharing_ids[]   = $sharing["ROW"]["usr_id"];
@@ -360,15 +484,15 @@ SQL;
                                     db-id='{$my_reports["ROW"]["id"]}'
                                     db-name='{$my_reports["ROW"]["name"]}'
                                     db-description='{$my_reports["ROW"]["description"]}'
-            db-shares='{$sharing_ids}'
-            >
-            <div class=\"d-flex w-100 justify-content-between\">
-            <h5 class=\"mb-1\">#{$my_reports["ROW"]["id"]}: {$my_reports["ROW"]["name"]}</h5>
-            <small>Visto por último: $last_seen_str</small>
-            </div>
-                    <p class=\"mb-1\">{$my_reports["ROW"]["description"]}</p>
-                    <small>$sharing_pills</small>
-                    </a>
+                                    db-shares='{$sharing_ids}'
+                                    >
+                                    <div class=\"d-flex w-100 justify-content-between\">
+                                        <h5 class=\"mb-1\">#{$my_reports["ROW"]["id"]}: {$my_reports["ROW"]["name"]}</h5>
+                                        <small>Visto por último: $last_seen_str</small>
+                                    </div>
+                                    <p class=\"mb-1\">{$my_reports["ROW"]["description"]}</p>
+                                    <small>$sharing_pills</small>
+                                </a>
                             ";
                             }
                         ?>
@@ -380,37 +504,45 @@ SQL;
             </div>
         </div>
         <script type="text/javascript">
+            var detail_owner_id = 0;
+            var detail_report_id = 0;
             var intervalFx = null;
             var updateTimeMillis = 1000;
             var uid = $("#owner").attr("db-id");
             $(".nav-link").click(function () {
                 document.cookie = "CURRENT_PAGE=" + $(this).attr("aria-controls");
                 document.title = "ViewLog - " + $(this).html();
-                clearInterval(intervalFx);
+
+                //clearInterval(intervalFx);
                 switch ($(this).attr("aria-controls")) {
                     case 'v-pills-dashboard':
-                        intervalFx = setInterval(function () {
-                            rep_id = 0;
-                            $.get("_php/api.charts.php?rep_id=" + rep_id + "&uid=" + uid, function (response) {
-                                try {
-                                    var r = JSON.parse(response);
-                                    console.log(r);
-                                } catch (err) {
-                                    $.toast({
-                                        heading: 'Falha ao atualizar dashboard #' + rep_id,
-                                        text: [
-                                            "Resposta do servidor:",
-                                            response,
-                                            "Erro javascript:",
-                                            err
-                                        ],
-                                        hideAfter: 2000,
-                                        icon: 'error',
-                                        loader: true
-                                    })
-                                }
-                            });
-                        }, updateTimeMillis);
+                        $("#v-pills-detail").removeClass("active show");
+                        $("#v-pills-detail").hide();
+
+                        var chart = window["chart_" + detail_owner_id + "_" + detail_report_id];
+                        chart.write("report-" + detail_owner_id + "-" + detail_report_id);
+
+                        var div = $("#report-" + detail_owner_id + "-" + detail_report_id);
+                        div.height(div.height() - 1);
+                        setTimeout(function () {
+                            div.height(div.height() + 1);
+                        }, 100);
+                        break;
+                    case 'v-pills-dashboard-sharing':
+                        $("#v-pills-detail").removeClass("active show");
+                        $("#v-pills-detail").hide();
+
+                        var chart = window["shared_chart_" + detail_owner_id + "_" + detail_report_id];
+                        chart.write("shared-report-" + detail_owner_id + "-" + detail_report_id);
+
+                        var div = $("#report-" + detail_owner_id + "-" + detail_report_id);
+                        div.height(div.height() - 1);
+                        setTimeout(function () {
+                            div.height(div.height() + 1);
+                        }, 100);
+                        break;
+                    case 'v-pills-detail':
+
                         break;
                     default:
 
@@ -437,7 +569,42 @@ SQL;
             });
 
             $(".detail").click(function () {
+                detail_owner_id = $(this).attr("owner");
+                detail_report_id = $(this).attr("report");
+                document.cookie = "CURRENT_PAGE=" + $(this).attr("aria-controls");
+                document.title = "ViewLog - " + $(this).html();
 
+                $("#detail-loading").show();
+
+                $("#title-detail").text($(this).attr("reportName"));
+                var classname = $(this).attr("class");
+
+                var chart = false;
+                if ($(this).hasClass("shared")) {
+                    chart = window["shared_chart_" + detail_owner_id + "_" + detail_report_id];
+
+                    $("#v-pills-dashboard-sharing-tab").removeClass("active");
+                    $("#v-pills-dashboard-sharing").removeClass("active show");
+                } else {
+                    chart = window["chart_" + detail_owner_id + "_" + detail_report_id];
+
+                    $("#v-pills-dashboard-tab").removeClass("active");
+                    $("#v-pills-dashboard").removeClass("active show");
+                }
+                chart.write("report-detail");
+
+                $("#report-detail").height($("#report-detail").height() - 1);
+                setTimeout(function () {
+                    $("#report-detail").height($("#report-detail").height() + 1);
+                }, 100);
+
+                $("#v-pills-detail").show();
+
+                $("#v-pills-detail").fadeIn(100, function () {
+                    $("#v-pills-detail").addClass("active show");
+                    $("#detail-loading").hide();
+                    $(document).scrollTop();
+                });
             });
 
             var toastSave = false;
@@ -488,6 +655,7 @@ SQL;
                     }
                 });
             });
+
             $("#my-report-edit-del").click(function () {
                 var toastDelete = $.toast({heading: 'Excluir relatório',
                     text: "Processando requisição...",
@@ -526,6 +694,50 @@ SQL;
                         });
                     }
                 });
+            });
+
+            $("#search").keyup(function () {
+                var search = $(this).val();
+                var count = 0, hide = 0;
+                $(".card").each(function () {
+                    var attr = $(this).attr('search');
+                    if (typeof attr !== 'undefined' && attr !== false) {
+                        if (!attr.match(new RegExp(search, 'i'))) {
+                            $(this).hide();
+                            hide++;
+                        } else {
+                            $(this).show();
+                            count++;
+                        }
+                    }
+                });
+                if (hide > 0) {
+                    $("#search-count").text(count + " resultado" + ((count === 1) ? "" : "s"));
+                } else {
+                    $("#search-count").text("");
+                }
+            });
+
+            $("#shared-search").keyup(function () {
+                var search = $(this).val();
+                var count = 0, hide = 0;
+                $(".shared-card").each(function () {
+                    var attr = $(this).attr('shared-search');
+                    if (typeof attr !== 'undefined' && attr !== false) {
+                        if (!attr.match(new RegExp(search, 'i'))) {
+                            $(this).hide();
+                            hide++;
+                        } else {
+                            $(this).show();
+                            count++;
+                        }
+                    }
+                });
+                if (hide > 0) {
+                    $("#shared-search-count").text(count + " resultado" + ((count === 1) ? "" : "s"));
+                } else {
+                    $("#shared-search-count").text("");
+                }
             });
         </script>
     </body>
