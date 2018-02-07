@@ -201,7 +201,7 @@ SQL;
                                     <div class=\"card-body\">
                                         <h5 class=\"card-title\">{$REPORTS["ROW"]["name"]}</h5>
                                         <p class=\"card-text\">{$REPORTS["ROW"]["description"]}</p>
-                                        <a class=\"btn btn-primary detail\"
+                                        <!--a class=\"btn btn-primary detail\"
                                            id=\"v-pills-detail-tab\"
                                            data-toggle=\"pill\"
                                            href=\"#v-pills-detail\"
@@ -211,6 +211,11 @@ SQL;
                                            reportName=\"{$REPORTS["ROW"]["name"]}\"
                                            aria-controls=\"v-pills-detail\"
                                            aria-selected=\"false\">
+                                            Detalhes
+                                        </a-->
+
+                                        <a class=\"btn btn-primary detail shared\"
+                                           href=\"detail.php?own={$REPORTS["ROW"]["owner"]}&id={$REPORTS["ROW"]["id"]}\">
                                             Detalhes
                                         </a>
                                     </div>
@@ -272,7 +277,7 @@ SQL;
                                     <div class=\"card-body\">
                                         <h5 class=\"card-title\"><span class=\"badge badge-secondary\">{$SHARED_REPORTS["ROW"]["owner_name"]}</span> {$SHARED_REPORTS["ROW"]["report_name"]}</h5>
                                         <p class=\"card-text\">{$SHARED_REPORTS["ROW"]["report_description"]}</p>
-                                        <a class=\"btn btn-primary detail shared\"
+                                        <!--a class=\"btn btn-primary detail shared\"
                                            id=\"v-pills-detail-tab\"
                                            data-toggle=\"pill\"
                                            href=\"#v-pills-detail\"
@@ -282,6 +287,10 @@ SQL;
                                            reportName=\"{$SHARED_REPORTS["ROW"]["report_name"]}\"
                                            aria-controls=\"v-pills-detail\"
                                            aria-selected=\"false\">
+                                            Detalhes
+                                        </a-->
+                                        <a class=\"btn btn-primary detail shared\"
+                                           href=\"detail.php?own={$SHARED_REPORTS["ROW"]["owner_id"]}&id={$SHARED_REPORTS["ROW"]["report_id"]}\">
                                             Detalhes
                                         </a>
                                     </div>
