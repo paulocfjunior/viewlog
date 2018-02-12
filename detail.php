@@ -68,6 +68,7 @@
         <link href="_css/bootstrap.min.css" rel="stylesheet"/>
         <link href="_css/bootstrap-select.min.css" rel="stylesheet"/>
         <link href="_css/detail.css" rel="stylesheet"/>
+        <link href="_css/access-tree.css" rel="stylesheet"/>
 
         <!--Scripts-->
         <script src="_js/jquery-3.3.1.min.js"></script>
@@ -109,13 +110,17 @@
 
         <?php
 
+            ob_start();
+            $access_summary = access_tree($OWNER, $REPORT_ID);
+            $tree = ob_get_clean();
+        
             function trata_ip($ip) {
                 $in1 = explode(" ", $ip);
                 $in2 = $in1[0];
                 return trim($in2);
             }
 
-            $CHART["SQL"] = "SELECT DATE_FORMAT(`viewlog`.`dt`, '%Y-%m-%d') AS 'date', `viewlog`.`ip`, `viewlog`.`gccr_id`, `viewlog`.`gccr_name`, COUNT(`viewlog`.`id`) AS 'views' FROM `viewlog` WHERE `owner_id` = '$UID' AND `rep_id` = '$REPORT_ID' GROUP BY DATE_FORMAT(`viewlog`.`dt`, '%Y-%m-%d'), `viewlog`.`ip`, `viewlog`.`gccr_name` ORDER BY COUNT(`viewlog`.`id`) DESC";
+            $CHART["SQL"] = "SELECT DATE_FORMAT(`viewlog`.`dt`, '%Y-%m-%d') AS 'date', `viewlog`.`ip`, `viewlog`.`gccr_id`, `viewlog`.`gccr_name`, COUNT(`viewlog`.`id`) AS 'views' FROM `viewlog` WHERE `owner_id` = '$OWNER' AND `rep_id` = '$REPORT_ID' GROUP BY DATE_FORMAT(`viewlog`.`dt`, '%Y-%m-%d'), `viewlog`.`ip`, `viewlog`.`gccr_name` ORDER BY COUNT(`viewlog`.`id`) DESC";
 
             $CHART["QUERY"] = sql_execute($CHART["SQL"]);
 
@@ -165,76 +170,38 @@
 
             $CHART["JSON"] = json_encode(array_values($CHART["JS"]), JSON_PRETTY_PRINT);
 
-            function radarData() {
-                global $UID, $REPORT_ID;
+            function radarData($return_json = true) {
+                global $OWNER, $REPORT_ID;
 
-                $CHART["SQL"] = "SELECT DATE_FORMAT(`viewlog`.`dt`, '%Y-%m-%d') AS 'date', `viewlog`.`ip`, `viewlog`.`gccr_id`, `viewlog`.`gccr_name`, COUNT(`viewlog`.`id`) AS 'views' FROM `viewlog` WHERE `owner_id` = '$UID' AND `rep_id` = '$REPORT_ID' GROUP BY DATE_FORMAT(`viewlog`.`dt`, '%Y-%m-%d'), `viewlog`.`ip`, `viewlog`.`gccr_name` ORDER BY COUNT(`viewlog`.`id`) DESC";
+                $CHART["SQL"] = "SELECT hour12, ampm, AVG(qtd) AS 'avg' FROM (SELECT DATE_FORMAT(`dt`, \"%Y-%m-%d\") as 'date', DATE_FORMAT(`dt`, \"%H\") as 'hour', DATE_FORMAT(`dt`, \"%h\") as 'hour12', DATE_FORMAT(`dt`, \"%p\") as 'ampm', COUNT(`id`) as 'qtd' FROM `viewlog` WHERE `owner_id` = '$OWNER' AND `rep_id` = '$REPORT_ID' GROUP BY DATE_FORMAT(`dt`, \"%Y-%m-%d\"), DATE_FORMAT(`dt`, \"%H\")) AS subq GROUP BY hour12, ampm ORDER BY ampm, hour12";
 
                 $CHART["QUERY"] = sql_execute($CHART["SQL"]);
+                
+                $result = [];
+                while ($row = $CHART["QUERY"]->fetch_assoc()){
+                    $result[$row["hour12"]]["hour"] = $row["hour12"] . "h";
+                    $result[$row["hour12"]][$row["ampm"]] = round($row["avg"], 2);
+                }
 
-                return "";
+                if($return_json){
+                    return json_encode(array_values($result), JSON_PRETTY_PRINT);
+                } else {
+                    return $result;
+                }
             }
-
+            
 //            echo "<pre>";
 //            print_r($CHART["JSON"]);
 //            echo "</pre>";
         ?>
 
         <script type="text/javascript">
-            var owner = '<?= $UID ?>';
+            var owner = '<?= $OWNER ?>';
             var report = '<?= $REPORT_ID ?>';
 
+            var radarData = <?= radarData() ?>;
             var chartData = <?= $CHART["JSON"] ?>;
 
-            var radarData = [{
-                    "hour": "12h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "01h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "02h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "03h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "04h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "05h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "06h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "07h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "08h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "09h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "10h",
-                    "day": 156.9,
-                    "night": 156.9
-                }, {
-                    "hour": "11h",
-                    "day": 156.9,
-                    "night": 156.9
-                }];
 
         </script>
         <script src="_js/detail.js"></script>
@@ -281,22 +248,12 @@
                 </div>
             </div>
             <div class="col-sm-6">
-                <div class="card">
+                <div class="card" id="tree">
                     <div class="card-body">
-                        <h5 class="card-title"><span>Special title treatment</span></h5>
-                        <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title"><span>Special title treatment</span></h5>
-                        <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title"><span>Special title treatment</span></h5>
-                        <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
+                        <h5 class="card-title"><span>Todos os acessos</span></h5>
+                        <p class="card-text">
+                            <?=$tree?>
+                        </p>
                     </div>
                 </div>
             </div>

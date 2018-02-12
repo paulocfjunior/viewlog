@@ -238,3 +238,106 @@ function register_visitor($referece = "null", $user = 32114) {
 
     }
 }
+
+/**
+ * Altera o formato de uma data
+ * @param string $date
+ * @param string $output_format
+ * @param string $input_format
+ * @return string
+ */
+function reformat_date($date, $output_format = "Y-m-d", $input_format = "Y-m-d H:i:s"){
+    $date = date_create_from_format($input_format, $date);
+    return $date->format($output_format);
+}
+
+/**
+ * Obtém um array com os dados de acesso resumidos por
+ *    data => ip => id usuário => Nome de usuário => horario
+ *
+ * @param int $owner
+ * @param int $report
+ * @return array
+ */
+function get_access_summary($owner, $report) {
+    
+    if(
+        !is_numeric($owner) ||
+        !is_numeric($report)
+    ){
+        return [];
+    }
+    
+    $query = sql_execute("SELECT * FROM `viewlog` WHERE `owner_id` = '$owner' AND `rep_id` = '$report' GROUP BY `ip`, `gccr_id`, DATE_FORMAT(`dt`, '%Y-%m-%d %H:%i') ORDER BY `dt` DESC");
+    
+    $result = [];
+    
+    if($query !== false){
+        while ($row = $query->fetch_assoc()){
+            $dt = reformat_date($row["dt"]);
+            $id = (((int)$row["gccr_id"] === 0)? "Sem dados" : $row["gccr_id"]);
+            @$result[$dt]["count"] += 1;
+            @$result[$dt]["ips"][$row["ip"]]["count"] += 1;
+            @$result[$dt]["ips"][$row["ip"]]["users"][$id][$row["gccr_name"]]["count"] += 1;
+            $result[$dt]["ips"][$row["ip"]]["users"][$id][$row["gccr_name"]]["dates"][] = reformat_date($row["dt"], "H:i:s");
+        }
+//        ksort($result, SORT_DESC);
+        foreach ($result as &$r){
+            ksort($r["ips"]);
+        }
+    }
+    
+    return $result;
+}
+
+/**
+ * @param int $owner
+ * @param int $report
+ */
+function access_tree($owner, $report){
+    $inc_o = ["default"];
+    require "include.php";
+    
+    $result = get_access_summary($owner, $report);
+    echo "<ul data-level='0'>";
+    foreach ($result as $k => $r){
+        echo "<li><button class='btn-tree' data-toggle='1'>-</button>" . reformat_date($k, "d/m/Y", "Y-m-d") . " ({$r["count"]})";
+        echo "<ul data-level='1' style='display: block'>";
+        foreach ($r["ips"] as $ip => $ip_meta) {
+            echo "<li><button class='btn-tree' data-toggle='2'>+</button>$ip ({$ip_meta["count"]})";
+            echo "<ul data-level='2' style='display: none'>";
+            foreach ($ip_meta["users"] as $id => $id_meta) {
+                echo "<li><button class='btn-tree' data-toggle='3'>-</button>$id";
+                echo "<ul data-level='3' style='display: block'>";
+                foreach ($id_meta as $user => $user_meta) {
+                    echo "<li><button class='btn-tree' data-toggle='4'>-</button>$user";
+                    echo "<ul data-level='4' style='display: block'>";
+                    foreach ($user_meta["dates"] as $time) {
+                        echo "<li>$time</li>";
+                    }
+                    echo "</li></ul>";
+                }
+                echo "</li></ul>";
+            }
+            echo "</li></ul>";
+        }
+        echo "</li></ul>";
+    }
+    echo "</ul>";
+    
+    echo <<<HTML
+    <script type="text/javascript">
+        if(typeof jQuery === "undefined"){
+            document.write('<script src="_js/jquery-3.3.1.min.js">');
+        };
+        
+        $(".btn-tree").click(function () {
+            var ul = $(this).next("ul[data-level=" + $(this).data("toggle") + "]");
+            ul.toggle();
+            $(this).html((ul.is(":visible"))? "-" : "+");
+        });
+    </script>
+HTML;
+    
+    return $result;
+}

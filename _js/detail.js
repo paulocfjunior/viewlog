@@ -112,16 +112,16 @@ var chart2 = AmCharts.makeChart("chartdiv2", {
         }],
     "startDuration": 1,
     "graphs": [{
-            "balloonText": "Média de [[value]] acessos de dia",
+            "balloonText": "Média de [[value]] acessos (PM)",
             "bullet": "round",
             "lineThickness": 2,
-            "valueField": "day"
+            "valueField": "PM"
         },
         {
-            "balloonText": "Média de [[value]] acessos de noite",
+            "balloonText": "Média de [[value]] acessos (AM)",
             "bullet": "round",
             "lineThickness": 2,
-            "valueField": "night"
+            "valueField": "AM"
         }],
     "categoryField": "hour",
     "export": {

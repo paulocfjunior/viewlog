@@ -1,0 +1,51 @@
+#tree .btn-tree {
+    display: inline;
+    width: 25px;
+    height: 25px;
+    margin: 0 10px;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    background: #80bdff;
+    color: #000;
+    transition: all 200ms;
+    outline: none;
+    user-select: none;
+}
+
+#tree .btn-tree:hover{
+    background: #007bff;
+    color: #fff;
+}
+
+#tree li {
+    margin: 5px 0;
+    padding: 5px;
+    list-style-type: none;
+    border-left: 1px solid #ccc;
+}
+
+#tree ul {
+    margin: 10px 0 5px;
+    padding-left: 25px;
+}
+
+#tree ul[data-level='0'] {
+    padding: 0;
+    width: 300px;
+}
+
+#tree ul[data-level='0'] > li {
+    border: none;
+}
+
+#tree ul[data-level='4'] {
+    padding-left: 50px;
+}
+
+#tree ul[data-level='4'] > li {
+    margin: 0;
+    padding: 0;
+    list-style-type: square;
+    border: none;
+}
