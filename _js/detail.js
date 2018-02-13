@@ -29,7 +29,7 @@ var chart = AmCharts.makeChart("chartdiv", {
             "balloonText": "[[ipSTR]]",
             "dashLengthField": "dashLength",
             "fillAlphas": 0.5,
-            "legendPeriodValueText": "",
+            "legendPeriodValueText": "TESTE",
             "legendValueText": "[[ips]]",
             "title": "IPs",
             "type": "column",

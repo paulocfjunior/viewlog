@@ -113,62 +113,26 @@
             ob_start();
             $access_summary = access_tree($OWNER, $REPORT_ID);
             $tree = ob_get_clean();
+            
+            $chartData_array = [];
+            foreach ($access_summary as $date => $date_meta) {
+                $ips = [];
+                $ips_meta = [];
+                foreach($date_meta["ips"] as $ip => $ip_meta) {
+                    $ips[] = "[" . $ip_meta["count"] . "] " . $ip ;
+                    $ips_meta[$ip] = $ip_meta;
+                }
+                $chartData_array[$date] = [
+                    "date" =>  $date,
+                    "ip" =>  $ips_meta,
+                    "ipSTR" => "IPs \n" . implode("\n", $ips),
+                    "ips" => count($ips),
+                    "views" => (int)$date_meta["count"]
+                ];
+            }
+            ksort($chartData_array, SORT_DESC);
         
-            function trata_ip($ip) {
-                $in1 = explode(" ", $ip);
-                $in2 = $in1[0];
-                return trim($in2);
-            }
-
-            $CHART["SQL"] = "SELECT DATE_FORMAT(`viewlog`.`dt`, '%Y-%m-%d') AS 'date', `viewlog`.`ip`, `viewlog`.`gccr_id`, `viewlog`.`gccr_name`, COUNT(`viewlog`.`id`) AS 'views' FROM `viewlog` WHERE `owner_id` = '$OWNER' AND `rep_id` = '$REPORT_ID' GROUP BY DATE_FORMAT(`viewlog`.`dt`, '%Y-%m-%d'), `viewlog`.`ip`, `viewlog`.`gccr_name` ORDER BY COUNT(`viewlog`.`id`) DESC";
-
-            $CHART["QUERY"] = sql_execute($CHART["SQL"]);
-
-            $done  = [];
-            $views = [];
-
-            while ($CHART["ROW"] = $CHART["QUERY"]->fetch_assoc()) {
-                $CHART["JS"][$CHART["ROW"]["date"]]["date"] = $CHART["ROW"]["date"];
-
-                $people = [];
-
-                $ip = trata_ip($CHART["ROW"]["ip"]);
-
-                @$views[$CHART["ROW"]["date"]][$ip] = $CHART["ROW"]["views"];
-                $people[]                          = "(" . $views[$CHART["ROW"]["date"]][$ip] . ")";
-                $people["identif"]                 = [$ip];
-
-                if ($CHART["ROW"]["gccr_id"] != 0)
-                    $people["identif"][] = $CHART["ROW"]["gccr_id"];
-
-                if (($CHART["ROW"]["gccr_name"] !== "") && (!is_numeric($CHART["ROW"]["gccr_name"])))
-                    $people["identif"][] = $CHART["ROW"]["gccr_name"];
-
-                $people[] = implode(" - ", $people["identif"]);
-                unset($people["identif"]);
-
-                $CHART["JS"][$CHART["ROW"]["date"]]["ip"][] = $people;
-
-                if (!isset($CHART["JS"][$CHART["ROW"]["date"]]["ipSTR"])) {
-                    $CHART["JS"][$CHART["ROW"]["date"]]["ipSTR"] = "IPs";
-                }
-
-                foreach ($CHART["JS"][$CHART["ROW"]["date"]]["ip"] as $p) {
-                    if (!in_array($p[0], $done)) {
-                        $CHART["JS"][$CHART["ROW"]["date"]]["ipSTR"] .= "\r\n" . implode(" ", $p);
-
-                        $done[] = $p[0];
-                    }
-                }
-
-                $CHART["JS"][$CHART["ROW"]["date"]]["ips"] = count($CHART["JS"][$CHART["ROW"]["date"]]["ip"]);
-
-                $CHART["JS"][$CHART["ROW"]["date"]]["views"] = array_sum(array_values($views[$CHART["ROW"]["date"]]));
-            }
-
-            ksort($CHART["JS"]);
-
-            $CHART["JSON"] = json_encode(array_values($CHART["JS"]), JSON_PRETTY_PRINT);
+            $CHART["JSON"] = json_encode(array_values($chartData_array), JSON_PRETTY_PRINT);
 
             function radarData($return_json = true) {
                 global $OWNER, $REPORT_ID;
