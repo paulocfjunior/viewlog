@@ -168,7 +168,6 @@ SQL;
                         $REPORTS["SQL"]   = "SELECT * FROM `report` WHERE `owner` = '$UID'";
                         $REPORTS["QUERY"] = sql_execute($REPORTS["SQL"]);
                         while ($REPORTS["ROW"]   = $REPORTS["QUERY"]->fetch_assoc()) {
-                            $REPORT_DATA["SQL"]   = "SELECT * FROM `viewlog` WHERE `owner_id` = '$UID' AND `rep_id` = '{$REPORTS["ROW"]["id"]}';";
                             $REPORT_DATA["SQL"]   = "SELECT DATE_FORMAT(`dt`, '%Y-%m-%d') AS 'date', COUNT(id) AS 'value' FROM `viewlog` WHERE `owner_id` = '$UID' AND `rep_id` = '{$REPORTS["ROW"]["id"]}' GROUP BY DATE_FORMAT(`dt`, '%Y-%m-%d')";
                             $REPORT_DATA["QUERY"] = sql_execute($REPORT_DATA["SQL"]);
 
@@ -193,7 +192,7 @@ SQL;
                                     . "</script>";
                                 $GRAPH_CLASS         = "graph";
                             }
-
+                            
                             echo "
                                 <div class=\"card\" search='{$REPORTS["ROW"]["id"]}|{$REPORTS["ROW"]["name"]}|{$REPORTS["ROW"]["description"]}'>
                                     $GRAPH_CONFIGURATION
@@ -748,6 +747,51 @@ SQL;
                     $("#shared-search-count").text("");
                 }
             });
+
+            setTimeout(function () {
+                setInterval(function () {
+                    var toastUpdate = $.toast({heading: 'Atualizando',
+                        text: "Atualizando gráficos...",
+                        hideAfter: false,
+                        icon: "info",
+                        showHideTransition: "slide",
+                        loader: false
+                    });
+                    $.post("_php/get_data_updated.php", function(r){
+                        try {
+                            var response = JSON.parse(r);
+                            for(var date in response){
+                                if (response.hasOwnProperty(date)) {
+                                    if(typeof window[date] !== 'undefined'){
+                                        window[date].dataProvider = response[date].data;
+                                        window[date].validateData();
+                                    }
+                                }
+                            }
+                            toastUpdate.reset();
+                            $.toast({
+                                heading: 'Atualizar gráficos',
+                                text: "Gráficos atualizados com sucesso",
+                                hideAfter: 1000,
+                                icon: "success",
+                                loader: true
+                            });
+                        } catch (e) {
+                            toastUpdate.reset();
+                            $.toast({
+                                heading: 'Atualizar gráficos',
+                                text: "Falha na atualização dos gráficos<br>" + e,
+                                hideAfter: 4000,
+                                icon: "error",
+                                loader: true
+                            });
+                            console.error(e);
+                            console.log(r);
+                        }
+                    });
+                }, 10000);
+            }, 5000);
+            
         </script>
     </body>
 </html>

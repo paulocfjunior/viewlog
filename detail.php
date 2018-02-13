@@ -27,13 +27,13 @@
         EXIT;
     } else {
         $REPORT_ID   = $_GET["id"];
-        $REPORT_NAME = sql_execute_scalar("SELECT `name` FROM `report` WHERE `owner` = '$UID' AND `id` = '$REPORT_ID'");
+        $REPORT_NAME = sql_execute_scalar("SELECT `name` FROM `report` WHERE `owner` = '$OWNER' AND `id` = '$REPORT_ID'");
 
         if ($REPORT_NAME === NULL) {
             header("location: ./");
             EXIT;
         } else {
-            $REPORT_DESC = sql_execute_scalar("SELECT `description` FROM `report` WHERE `owner` = '$UID' AND `id` = '$REPORT_ID'");
+            $REPORT_DESC = sql_execute_scalar("SELECT `description` FROM `report` WHERE `owner` = '$OWNER' AND `id` = '$REPORT_ID'");
         }
     }
 ?>
@@ -114,49 +114,6 @@
             $access_summary = access_tree($OWNER, $REPORT_ID);
             $tree = ob_get_clean();
             
-            $chartData_array = [];
-            foreach ($access_summary as $date => $date_meta) {
-                $ips = [];
-                $ips_meta = [];
-                foreach($date_meta["ips"] as $ip => $ip_meta) {
-                    $ips[] = "[" . $ip_meta["count"] . "] " . $ip ;
-                    $ips_meta[$ip] = $ip_meta;
-                }
-                $chartData_array[$date] = [
-                    "date" =>  $date,
-                    "ip" =>  $ips_meta,
-                    "ipSTR" => "IPs \n" . implode("\n", $ips),
-                    "ips" => count($ips),
-                    "views" => (int)$date_meta["count"]
-                ];
-            }
-            ksort($chartData_array, SORT_DESC);
-        
-            $CHART["JSON"] = json_encode(array_values($chartData_array), JSON_PRETTY_PRINT);
-
-            function radarData($return_json = true) {
-                global $OWNER, $REPORT_ID;
-
-                $CHART["SQL"] = "SELECT hour12, ampm, AVG(qtd) AS 'avg' FROM (SELECT DATE_FORMAT(`dt`, \"%Y-%m-%d\") as 'date', DATE_FORMAT(`dt`, \"%H\") as 'hour', DATE_FORMAT(`dt`, \"%h\") as 'hour12', DATE_FORMAT(`dt`, \"%p\") as 'ampm', COUNT(`id`) as 'qtd' FROM `viewlog` WHERE `owner_id` = '$OWNER' AND `rep_id` = '$REPORT_ID' GROUP BY DATE_FORMAT(`dt`, \"%Y-%m-%d\"), DATE_FORMAT(`dt`, \"%H\")) AS subq GROUP BY hour12, ampm ORDER BY ampm, hour12";
-
-                $CHART["QUERY"] = sql_execute($CHART["SQL"]);
-                
-                $result = [];
-                while ($row = $CHART["QUERY"]->fetch_assoc()){
-                    $result[$row["hour12"]]["hour"] = $row["hour12"] . "h";
-                    $result[$row["hour12"]][$row["ampm"]] = round($row["avg"], 2);
-                }
-
-                if($return_json){
-                    return json_encode(array_values($result), JSON_PRETTY_PRINT);
-                } else {
-                    return $result;
-                }
-            }
-            
-//            echo "<pre>";
-//            print_r($CHART["JSON"]);
-//            echo "</pre>";
         ?>
 
         <script type="text/javascript">
@@ -164,8 +121,7 @@
             var report = '<?= $REPORT_ID ?>';
 
             var radarData = <?= radarData() ?>;
-            var chartData = <?= $CHART["JSON"] ?>;
-
+            var chartData = <?= principalChardData($access_summary) ?>;
 
         </script>
         <script src="_js/detail.js"></script>
@@ -215,7 +171,7 @@
                 <div class="card" id="tree">
                     <div class="card-body">
                         <h5 class="card-title"><span>Todos os acessos</span></h5>
-                        <p class="card-text">
+                        <p class="card-text" id="tree-list-container">
                             <?=$tree?>
                         </p>
                     </div>
@@ -229,6 +185,7 @@
                     $(selector).html(newText).fadeIn(200);
                 });
             }
+            var update = 0;
 
             setInterval(function () {
                 $.get("_php/get_last_view.php?o=" + owner + "&r=" + report, function (res) {
@@ -238,22 +195,69 @@
 
                         if ($(sel).text() !== r.result) {
                             changeText(sel, r.result);
+                            if(update !== 2) {
+                                update = 1;
+                            }
                         }
                     } catch (exception) {
                         console.log(res);
                         console.log(exception);
                     }
                 });
-            }, 1000);
-//
-//            setInterval(function () {
-//                changeText("#chart-card-split-1 .col-sm-6:nth-child(1) .card-title span", new Date);
-//            }, 1300);
-//
-//            setInterval(function () {
-//                changeText("#chart-card-split-1 .col-sm-6:nth-child(2) .card-title span", new Date);
-//            }, 2200);
+            }, 500);
 
+            setInterval(function () {
+                if(update === 1){
+                    update = 2;
+                    var toastUpdate = $.toast({heading: 'Novo acesso detectado!',
+                        text: "Atualizando gráficos...",
+                        icon: "info",
+                        showHideTransition: "slide",
+                        hideAfter: false,
+                        loader: true,
+                        stack: 3
+                    });
+                    $.post("_php/get_detail_data_updated.php?o=" + owner + "&r=" + report, function(r){
+                        try {
+                            var response = JSON.parse(r);
+                            for(var chartData in response.charts){
+                                if (response.hasOwnProperty(chartData)) {
+                                    console.log(window[chartData]);
+                                    window[chartData].dataProvider = response[chartData];
+                                    window[chartData].validateData();
+                                }
+                            }
+
+                            if(typeof response.list !== 'undefined'){
+                                $("#tree-list-container").html(response.list);
+                            }
+
+                            toastUpdate.reset();
+                            $.toast({
+                                heading: 'Atualizar gráficos',
+                                text: "Gráficos atualizados com sucesso",
+                                icon: "success",
+                                hideAfter: 1000,
+                                loader: true,
+                                stack: 3
+                            });
+                        } catch (e) {
+                            toastUpdate.reset();
+                            $.toast({
+                                heading: 'Atualizar gráficos',
+                                text: "Falha na atualização dos gráficos<br>" + e,
+                                hideAfter: 4000,
+                                icon: "error",
+                                loader: true,
+                                stack: 3
+                            });
+                            console.error(e);
+                            console.log(r);
+                        }
+                        update = 0;
+                    });
+                }
+            }, 1000);
         </script>
     </body>
 </html>

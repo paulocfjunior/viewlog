@@ -293,6 +293,7 @@ function get_access_summary($owner, $report) {
 /**
  * @param int $owner
  * @param int $report
+ * @return array
  */
 function access_tree($owner, $report){
     $inc_o = ["default"];
@@ -340,4 +341,82 @@ function access_tree($owner, $report){
 HTML;
     
     return $result;
+}
+
+/**
+ * Move um elemento de um array da posição $from para a posição $to
+ * @param &$array
+ * @param $from
+ * @param $to
+ */
+function moveElement(&$array, $from, $to) {
+    $out = array_splice($array, $from, 1);
+    array_splice($array, $to, 0, $out);
+}
+
+/**
+ * Retorna os dados para o gráfico de radar da tela Detalhes
+ * @param bool $return_json
+ * @return string
+ */
+function radarData($return_json = true) {
+    global $OWNER, $REPORT_ID;
+    
+    $CHART["SQL"] = "SELECT hour12, ampm, AVG(qtd) AS 'avg' FROM (SELECT DATE_FORMAT(`dt`, \"%Y-%m-%d\") as 'date', DATE_FORMAT(`dt`, \"%H\") as 'hour', DATE_FORMAT(`dt`, \"%h\") as 'hour12', DATE_FORMAT(`dt`, \"%p\") as 'ampm', COUNT(`id`) as 'qtd' FROM `viewlog` WHERE `owner_id` = '$OWNER' AND `rep_id` = '$REPORT_ID' GROUP BY DATE_FORMAT(`dt`, \"%Y-%m-%d\"), DATE_FORMAT(`dt`, \"%H\")) AS subq GROUP BY hour12, ampm ORDER BY ampm, hour12";
+    
+    $CHART["QUERY"] = sql_execute($CHART["SQL"]);
+    
+    for ($i = 1; $i < 13; $i++){
+        $hourAM = str_pad($i, 2, "0", STR_PAD_LEFT);
+        $hourPM = str_pad(((($i + 12) == 24)? 0 : $i + 12), 2, "0", STR_PAD_LEFT);
+        $result[(int)$hourAM] = [
+            "hour" => "{$hourAM}h (AM)\n{$hourPM}h (PM)",
+            "AM" => 0,
+            "PM" => 0
+        ];
+    }
+    
+    while ($row = $CHART["QUERY"]->fetch_assoc()){
+        $result[(int)$row["hour12"]][$row["ampm"]] = round($row["avg"], 2);
+    }
+    
+    moveElement($result, 11, 0);
+    
+    if($return_json){
+        return json_encode(array_values($result), JSON_PRETTY_PRINT);
+    } else {
+        return $result;
+    }
+}
+
+/**
+ * Retorna os dados para o gráfico principal da tela Detalhes
+ * @param $access_summary
+ * @param bool $return_json
+ * @return array|string
+ */
+function principalChardData($access_summary, $return_json = true) {
+    $chartData_array = [];
+    foreach ($access_summary as $date => $date_meta) {
+        $ips = [];
+        $ips_meta = [];
+        foreach($date_meta["ips"] as $ip => $ip_meta) {
+            $ips[] = "[" . $ip_meta["count"] . "] " . $ip ;
+            $ips_meta[$ip] = $ip_meta;
+        }
+        $chartData_array[$date] = [
+            "date" =>  $date,
+            "ip" =>  $ips_meta,
+            "ipSTR" => "IPs \n" . implode("\n", $ips),
+            "ips" => count($ips),
+            "views" => (int)$date_meta["count"]
+        ];
+    }
+    ksort($chartData_array, SORT_DESC);
+    
+    if($return_json){
+        return json_encode(array_values($chartData_array), JSON_PRETTY_PRINT);
+    } else {
+        return array_values($chartData_array);
+    }
 }
