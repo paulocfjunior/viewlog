@@ -260,18 +260,18 @@ function reformat_date($date, $output_format = "Y-m-d", $input_format = "Y-m-d H
  * @return array
  */
 function get_access_summary($owner, $report) {
-    
+
     if(
         !is_numeric($owner) ||
         !is_numeric($report)
     ){
         return [];
     }
-    
+
     $query = sql_execute("SELECT * FROM `viewlog` WHERE `owner_id` = '$owner' AND `rep_id` = '$report' GROUP BY `ip`, `gccr_id`, DATE_FORMAT(`dt`, '%Y-%m-%d %H:%i') ORDER BY `dt` DESC");
-    
+
     $result = [];
-    
+
     if($query !== false){
         while ($row = $query->fetch_assoc()){
             $dt = reformat_date($row["dt"]);
@@ -286,7 +286,7 @@ function get_access_summary($owner, $report) {
             ksort($r["ips"]);
         }
     }
-    
+
     return $result;
 }
 
@@ -298,7 +298,7 @@ function get_access_summary($owner, $report) {
 function access_tree($owner, $report){
     $inc_o = ["default"];
     require "include.php";
-    
+
     $result = get_access_summary($owner, $report);
     echo "<ul data-level='0'>";
     foreach ($result as $k => $r){
@@ -325,13 +325,13 @@ function access_tree($owner, $report){
         echo "</li></ul>";
     }
     echo "</ul>";
-    
+
     echo <<<HTML
     <script type="text/javascript">
         if(typeof jQuery === "undefined"){
             document.write('<script src="_js/jquery-3.3.1.min.js">');
         };
-        
+
         $(".btn-tree").click(function () {
             var ul = $(this).next("ul[data-level=" + $(this).data("toggle") + "]");
             ul.toggle();
@@ -339,7 +339,7 @@ function access_tree($owner, $report){
         });
     </script>
 HTML;
-    
+
     return $result;
 }
 
@@ -361,27 +361,27 @@ function moveElement(&$array, $from, $to) {
  */
 function radarData($return_json = true) {
     global $OWNER, $REPORT_ID;
-    
+
     $CHART["SQL"] = "SELECT hour12, ampm, AVG(qtd) AS 'avg' FROM (SELECT DATE_FORMAT(`dt`, \"%Y-%m-%d\") as 'date', DATE_FORMAT(`dt`, \"%H\") as 'hour', DATE_FORMAT(`dt`, \"%h\") as 'hour12', DATE_FORMAT(`dt`, \"%p\") as 'ampm', COUNT(`id`) as 'qtd' FROM `viewlog` WHERE `owner_id` = '$OWNER' AND `rep_id` = '$REPORT_ID' GROUP BY DATE_FORMAT(`dt`, \"%Y-%m-%d\"), DATE_FORMAT(`dt`, \"%H\")) AS subq GROUP BY hour12, ampm ORDER BY ampm, hour12";
-    
+
     $CHART["QUERY"] = sql_execute($CHART["SQL"]);
-    
+
     for ($i = 1; $i < 13; $i++){
-        $hourAM = str_pad($i, 2, "0", STR_PAD_LEFT);
-        $hourPM = str_pad(((($i + 12) == 24)? 0 : $i + 12), 2, "0", STR_PAD_LEFT);
+        $hourAM = str_pad((($i == 12)? 0 : $i), 2, "0", STR_PAD_LEFT);
+        $hourPM = str_pad(((($i + 12) == 24)? 12 : $i + 12), 2, "0", STR_PAD_LEFT);
         $result[(int)$hourAM] = [
             "hour" => "{$hourAM}h (AM)\n{$hourPM}h (PM)",
             "AM" => 0,
             "PM" => 0
         ];
     }
-    
+
     while ($row = $CHART["QUERY"]->fetch_assoc()){
-        $result[(int)$row["hour12"]][$row["ampm"]] = round($row["avg"], 2);
+        $result[((int)$row["hour12"] - 1)][$row["ampm"]] = round($row["avg"], 2);
     }
-    
+
     moveElement($result, 11, 0);
-    
+
     if($return_json){
         return json_encode(array_values($result), JSON_PRETTY_PRINT);
     } else {
@@ -413,7 +413,7 @@ function principalChardData($access_summary, $return_json = true) {
         ];
     }
     ksort($chartData_array, SORT_DESC);
-    
+
     if($return_json){
         return json_encode(array_values($chartData_array), JSON_PRETTY_PRINT);
     } else {
